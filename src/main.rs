@@ -1,26 +1,114 @@
-use std::error;
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::env;
+use std::error::Error;
+use std::io::{self, Write};
 
 mod game;
 
-use game::Game;
+use game::{Game, Point};
 
-fn main() -> Result<(), Box<dyn error::Error>> {
-    // todo accept cmdline args.
-
-    let mut game = Game::from_file("tests/io/good/small.in")?;
+fn main() -> Result<(), Box<dyn Error>> {
+    let file_name = read_args()?;
+    let mut game = Game::from_file(&file_name)?;
 
     loop {
-        // Display.
-        println!("{}\n", game.to_string());
-        game.reveal_all();
+        // Display grid.
+        //clear_screen();
         println!("{}", game.to_string());
 
-        // Get input. todo
+        // Get input.
+        let Point { row, col } = loop {
+            // Prompt.
+            print!("> ");
+            io::stdout().flush()?;
 
-        // Update. todo
+            use Input::*;
+            match read_input()? {
+                Point(p) => break p,
+                Exit => return Ok(()),
+                Malformed => {
+                    println!("Valid moves consist of two numbers: row, col");
+                    continue;
+                }
+            }
+        };
 
-        break;
+        // Update game state. todo
+        dbg!(row, col);
+    }
+}
+
+/// Read the input file name from the commandline; else return a default.
+fn read_args() -> Result<String, Box<dyn Error>> {
+    let mut args = env::args();
+
+    // Ignore executable name.
+    args.next().unwrap();
+
+    let file_name = match args.next() {
+        Some(f) => f,
+        None => String::from("tests/io/good/small.in"),
+    };
+
+    if let Some(_) = args.next() {
+        Err("Too many arguments. Expected just one filename.")?;
     }
 
-    Ok(())
+    Ok(file_name)
+}
+
+/// Poor man's clear-screen; just print 100 newlines.
+fn clear_screen() {
+    for _ in 0..100 {
+        println!();
+    }
+}
+
+/// A line of input typed by the user.
+enum Input {
+    Point(Point),
+    Exit,
+    Malformed,
+}
+
+/// Read a line of input from the user (stdin).
+///
+/// Look either for the word "quit" or "exit", or for 2 non-negative numbers.
+fn read_input() -> io::Result<Input> {
+    lazy_static! {
+        static ref ALPHA_NUM: Regex = Regex::new(r"[\d\p{Alphabetic}]").unwrap();
+        static ref QUIT_OR_EXIT: Regex = Regex::new(r"(?i)^(quit|exit)$").unwrap();
+        static ref ALPHABETIC: Regex = Regex::new(r"\p{Alphabetic}").unwrap();
+        static ref NUM: Regex = Regex::new(r"\d+").unwrap();
+    }
+    let not_alpha_num = |c| !ALPHA_NUM.is_match(&format!("{}", c));
+
+    let mut line = String::new();
+    if io::stdin().read_line(&mut line)? == 0 {
+        // Input stream closed.
+        return Ok(Input::Exit);
+    }
+
+    // Check for exactly "quit" or "exit".
+    let trimmed = line.trim_matches(not_alpha_num);
+    if QUIT_OR_EXIT.is_match(trimmed) {
+        return Ok(Input::Exit);
+    }
+
+    // Are there are letters in the input?
+    if ALPHABETIC.is_match(trimmed) {
+        return Ok(Input::Malformed);
+    }
+
+    // Find exactly 2 numbers (strings of contiguous digits).
+    // We don't care what else is in the input; any separators are fine.
+    let mut matches = NUM.find_iter(trimmed);
+    match (matches.next(), matches.next(), matches.next()) {
+        (Some(m1), Some(m2), None) => match (m1.as_str().parse(), m2.as_str().parse()) {
+            (Ok(row), Ok(col)) => Ok(Input::Point(Point { row, col })),
+            _ => Ok(Input::Malformed),
+        },
+        _ => Ok(Input::Malformed),
+    }
 }

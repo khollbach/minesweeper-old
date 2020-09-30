@@ -5,6 +5,13 @@ mod parse_grid;
 
 use parse_grid::{Grid, ParseResult};
 
+/// The location of a tile in the grid.
+#[derive(Debug)]
+pub struct Point {
+    pub row: usize,
+    pub col: usize,
+}
+
 /// A tile in the game.
 #[derive(Debug)]
 pub struct Tile {
