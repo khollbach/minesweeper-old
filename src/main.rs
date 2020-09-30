@@ -1,17 +1,19 @@
-use std::io::BufReader;
+use std::error;
 
-mod grid;
+mod game;
 
-fn main() {
-    // todo read the file the "right" way; also, accept cmdline args.
-    let mut grid = grid::parse(BufReader::new(
-        include_str!("../tests/io/small.in").as_bytes(),
-    ))
-    .unwrap();
+use game::Game;
+
+fn main() -> Result<(), Box<dyn error::Error>> {
+    // todo accept cmdline args.
+
+    let mut game = Game::from_file("tests/io/good/small.in")?;
 
     loop {
         // Display.
-        print!("{}", grid.to_string());
+        println!("{}\n", game.to_string());
+        game.reveal_all();
+        println!("{}", game.to_string());
 
         // Get input. todo
 
@@ -19,4 +21,6 @@ fn main() {
 
         break;
     }
+
+    Ok(())
 }
