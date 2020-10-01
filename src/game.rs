@@ -6,22 +6,22 @@ mod parse_grid;
 use parse_grid::{Grid, ParseResult};
 
 /// The location of a tile in the grid.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub row: usize,
     pub col: usize,
 }
 
 /// A tile in the game.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Tile {
-    has_bomb: bool,
-    adj_bombs: u32,
-    visibility: Visibility,
+    pub has_bomb: bool,
+    pub adj_bombs: u32,
+    pub visibility: Visibility,
 }
 
 /// Is this tile revealed to the player?
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Hidden,
     Flagged,
@@ -62,26 +62,97 @@ impl Tile {
     }
 }
 
+/// Has the game finished?
+#[derive(Debug, Clone, Copy)]
+pub enum GameOutcome {
+    Win,
+    Loss,
+}
+
 /// The state of a game of minesweeper.
 ///
 /// Mostly just the grid, plus some other data.
 #[derive(Debug)]
 pub struct Game {
-    num_bombs: u32,
+    /// The grid of tiles. Guaranteed to be a non-empty rectangle.
     grid: Grid,
+    /// The total number of bombs in the game.
+    num_bombs: u32,
+    /// The total number of *NON-BOMB* tiles successfully revealed by the player.
+    num_revealed: u32,
+    /// Is the game over, and how did it end?
+    game_over: Option<GameOutcome>,
 }
 
 impl Game {
     /// Read a grid from an input stream. See `parse_grid::parse` for more.
     pub fn from_input<R: Read>(input: &mut BufReader<R>) -> io::Result<Game> {
         let ParseResult { grid, num_bombs } = parse_grid::parse(input)?;
-        Ok(Game { num_bombs, grid })
+        Ok(Game {
+            grid,
+            num_bombs,
+            num_revealed: 0,
+            game_over: None,
+        })
     }
 
     /// Read a grid from an input file. See `from_input` for more.
     pub fn from_file(file_name: &str) -> io::Result<Game> {
         let file = File::open(file_name)?;
         Game::from_input(&mut BufReader::new(file))
+    }
+
+    /// Get the total number of bombs in the game.
+    pub fn num_bombs(&self) -> u32 {
+        self.num_bombs
+    }
+
+    /// Get the dimensions of the game grid: (height, width).
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.grid.len(), self.grid[0].len())
+    }
+
+    /// How many total tiles are there on the grid?
+    pub fn num_tiles(&self) -> u32 {
+        let (h, w) = self.dimensions();
+        (h * w) as u32
+    }
+
+    /// Get a tile, or return None if the indeces are out of bounds.
+    pub fn get(&self, point: Point) -> Option<Tile> {
+        let Point { row, col } = point;
+        if row < self.grid.len() && col < self.grid[row].len() {
+            Some(self.grid[row][col])
+        } else {
+            None
+        }
+    }
+
+    /// Reveal a tile.
+    ///
+    /// `point` must be in-range.
+    pub fn reveal(&mut self, point: Point) {
+        let Point { row, col } = point;
+        let tile = &mut self.grid[row][col];
+
+        if tile.visibility != Visibility::Revealed {
+            tile.visibility = Visibility::Revealed;
+            self.num_revealed += 1;
+        }
+
+        if tile.has_bomb {
+            self.game_over = Some(GameOutcome::Loss)
+        } else if self.num_revealed == self.num_tiles() - self.num_bombs {
+            self.game_over = Some(GameOutcome::Win)
+        }
+    }
+
+    /// Is the game over, and how did it end?
+    ///
+    /// Return None if the game is in progress.
+    #[must_use]
+    pub fn game_over(&self) -> Option<GameOutcome> {
+        self.game_over
     }
 
     /// Newline-separated rows of chars. No trailing newline.

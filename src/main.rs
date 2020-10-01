@@ -6,7 +6,7 @@ use std::io::{self, Write};
 
 mod game;
 
-use game::{Game, Point};
+use game::{Game, GameOutcome, Point, Visibility};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let file_name = read_args()?;
@@ -14,18 +14,45 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         // Display grid.
-        //clear_screen();
+        clear_screen();
         println!("{}", game.to_string());
 
         // Get input.
-        let Point { row, col } = loop {
+        let point_to_reveal = loop {
             // Prompt.
             print!("> ");
             io::stdout().flush()?;
 
             use Input::*;
+            use Visibility::*;
             match read_input()? {
-                Point(p) => break p,
+                Point(p) => match game.get(p) {
+                    Some(t) => match t.visibility {
+                        Revealed => {
+                            println!("Already revealed: ({}, {})", p.row, p.col);
+                            continue;
+                        }
+                        Flagged => {
+                            println!(
+                                "Tile is flagged: ({}, {}). Unflag before proceeding.",
+                                p.row, p.col
+                            );
+                            continue;
+                        }
+                        Hidden => break p,
+                    },
+                    None => {
+                        let (height, width) = game.dimensions();
+                        println!(
+                            "Indeces out of bounds: ({}, {}). Max tile is: ({}, {}).",
+                            p.row,
+                            p.col,
+                            height - 1,
+                            width - 1
+                        );
+                        continue;
+                    }
+                },
                 Exit => return Ok(()),
                 Malformed => {
                     println!("Valid moves consist of two numbers: row, col");
@@ -34,8 +61,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         };
 
-        // Update game state. todo
-        dbg!(row, col);
+        // Update game state.
+        game.reveal(point_to_reveal);
+
+        // Check if the game is over.
+        use GameOutcome::*;
+        match game.game_over() {
+            Some(Win) => {
+                println!("Yay! You win!");
+                return Ok(());
+            }
+            Some(Lose) => {
+                println!("Aww... you lost :(");
+                return Ok(());
+            }
+            None => (),
+        }
     }
 }
 
@@ -60,7 +101,9 @@ fn read_args() -> Result<String, Box<dyn Error>> {
 
 /// Poor man's clear-screen; just print 100 newlines.
 fn clear_screen() {
-    for _ in 0..100 {
+    //let n = 100;
+    let n = 1; // for now, while I code
+    for _ in 0..n {
         println!();
     }
 }
