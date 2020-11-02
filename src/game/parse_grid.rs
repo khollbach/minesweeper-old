@@ -1,15 +1,11 @@
 //! Grid-parsing logic.
 //!
-//! Tested in `game` module against grid-printing logic.
+//! Unit-tested in the [`game`] module against grid-printing logic.
 
+use super::{Grid, Tile};
 use std::io::{self, BufRead, BufReader, Read};
 
-use crate::game::Tile;
-
-/// The grid of tiles in a game of minesweeper.
-pub type Grid = Vec<Vec<Tile>>;
-
-/// Return value of `parse`.
+/// Return value of [`parse_grid`].
 pub struct ParseResult {
     pub grid: Grid,
     pub num_bombs: u32,
@@ -18,7 +14,7 @@ pub struct ParseResult {
 /// Parse an input stream into a Grid. The grid must be non-empty and rectangular.
 ///
 /// Valid input chars are '#' or '.' for bomb / empty. Otherwise, this will fail.
-pub fn parse<R: Read>(input: &mut BufReader<R>) -> io::Result<ParseResult> {
+pub fn parse_grid(input: &mut BufReader<impl Read>) -> io::Result<ParseResult> {
     let err = |s| Err(io::Error::new(io::ErrorKind::InvalidData, s));
 
     let mut grid: Grid = vec![];
@@ -62,6 +58,7 @@ pub fn parse<R: Read>(input: &mut BufReader<R>) -> io::Result<ParseResult> {
     }
 
     compute_adj_bombs(&mut grid);
+
     Ok(ParseResult { grid, num_bombs })
 }
 
@@ -76,29 +73,28 @@ fn compute_adj_bombs(grid: &mut Grid) {
 
 /// How many bombs are adjacent to this tile? Indeces must be in range.
 ///
-/// (Does not include this tile itself, if its a bomb.)
+/// We do include this tile itself, if it is a bomb.
 fn adj_bombs(grid: &Grid, i: usize, j: usize) -> u32 {
     let i = i as isize;
     let j = j as isize;
 
     let n = grid.len() as isize;
     let m = grid[0].len() as isize;
-    debug_assert!((0..n).contains(&i) && (0..m).contains(&j));
+    assert!((0..n).contains(&i) && (0..m).contains(&j));
 
-    // Check all 8 adj tiles for bombs.
     let mut bombs = 0;
+
+    // Check all 9 "adjacent" tiles for bombs.
     for &di in &[-1, 0, 1] {
         for &dj in &[-1, 0, 1] {
             let x = i + di;
             let y = j + dj;
-            if (di, dj) != (0, 0)
-                && (0..n).contains(&x)
-                && (0..m).contains(&y)
-                && grid[x as usize][y as usize].has_bomb
-            {
+            if (0..n).contains(&x) && (0..m).contains(&y) && grid[x as usize][y as usize].has_bomb {
                 bombs += 1;
             }
         }
     }
+
+    assert!(bombs <= 9);
     bombs
 }

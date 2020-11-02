@@ -1,73 +1,12 @@
+use parse_grid::{parse_grid, ParseResult};
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 
 mod parse_grid;
+mod types;
 
-use parse_grid::{Grid, ParseResult};
-
-/// The location of a tile in the grid.
-#[derive(Debug, Clone, Copy)]
-pub struct Point {
-    pub row: usize,
-    pub col: usize,
-}
-
-/// A tile in the game.
-#[derive(Debug, Clone, Copy)]
-pub struct Tile {
-    pub has_bomb: bool,
-    pub adj_bombs: u32,
-    pub visibility: Visibility,
-}
-
-/// Is this tile revealed to the player?
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Visibility {
-    Hidden,
-    Flagged,
-    Revealed,
-}
-
-impl Tile {
-    /// Create a new tile, initially hidden.
-    ///
-    /// self.adj_bombs is *NOT* computed here.
-    pub fn new(has_bomb: bool) -> Self {
-        Self {
-            has_bomb,
-            adj_bombs: 0,
-            visibility: Visibility::Hidden,
-        }
-    }
-
-    /// What should we display to the user?
-    ///
-    /// Depends on whether the tile is revealed/flagged, how many adjacent bombs, etc.
-    pub fn to_char(&self) -> char {
-        use Visibility::*;
-        match self.visibility {
-            Hidden => '.',
-            Flagged => '*',
-            Revealed => {
-                if self.has_bomb {
-                    '#'
-                } else if self.adj_bombs == 0 {
-                    ' '
-                } else {
-                    assert!(self.adj_bombs < 10);
-                    self.adj_bombs.to_string().chars().next().unwrap()
-                }
-            }
-        }
-    }
-}
-
-/// Has the game finished?
-#[derive(Debug, Clone, Copy)]
-pub enum GameOutcome {
-    Win,
-    Loss,
-}
+pub use types::{GameOutcome, Grid, Point, Tile, Visibility};
 
 /// The state of a game of minesweeper.
 ///
@@ -76,35 +15,35 @@ pub enum GameOutcome {
 pub struct Game {
     /// The grid of tiles. Guaranteed to be a non-empty rectangle.
     grid: Grid,
+
     /// The total number of bombs in the game.
     num_bombs: u32,
-    /// The total number of *NON-BOMB* tiles successfully revealed by the player.
+
+    /// The total number of tiles revealed.
     num_revealed: u32,
+
     /// Is the game over, and how did it end?
-    game_over: Option<GameOutcome>,
+    is_game_over: Option<GameOutcome>,
 }
 
 impl Game {
-    /// Read a grid from an input stream. See `parse_grid::parse` for more.
-    pub fn from_input<R: Read>(input: &mut BufReader<R>) -> io::Result<Game> {
-        let ParseResult { grid, num_bombs } = parse_grid::parse(input)?;
+    /// Read a grid from an input stream. See [`parse_grid`] for details.
+    pub fn from_input(input: &mut BufReader<impl Read>) -> io::Result<Game> {
+        let ParseResult { grid, num_bombs } = parse_grid(input)?;
+
         Ok(Game {
             grid,
             num_bombs,
             num_revealed: 0,
-            game_over: None,
+            is_game_over: None,
         })
     }
 
-    /// Read a grid from an input file. See `from_input` for more.
+    /// Read a grid from an input file. See [`Game::from_input`] for details.
     pub fn from_file(file_name: &str) -> io::Result<Game> {
         let file = File::open(file_name)?;
-        Game::from_input(&mut BufReader::new(file))
-    }
 
-    /// Get the total number of bombs in the game.
-    pub fn num_bombs(&self) -> u32 {
-        self.num_bombs
+        Game::from_input(&mut BufReader::new(file))
     }
 
     /// Get the dimensions of the game grid: (height, width).
@@ -118,6 +57,11 @@ impl Game {
         (h * w) as u32
     }
 
+    /// Get the total number of bombs in the game.
+    pub fn num_bombs(&self) -> u32 {
+        self.num_bombs
+    }
+
     /// Get a tile, or return None if the indeces are out of bounds.
     pub fn get(&self, point: Point) -> Option<Tile> {
         let Point { row, col } = point;
@@ -128,47 +72,36 @@ impl Game {
         }
     }
 
-    /// Reveal a tile.
+    /// Is the game over, and how did it end?
     ///
-    /// `point` must be in-range.
+    /// Return None if the game is in progress.
+    pub fn is_game_over(&self) -> Option<GameOutcome> {
+        self.is_game_over
+    }
+
+    /// Reveal a tile. If this ends the game, update `self.is_game_over`.
+    ///
+    /// `point` must be in-range. The tile *must* be [`Visibility::Hidden`].
     pub fn reveal(&mut self, point: Point) {
         let Point { row, col } = point;
         let tile = &mut self.grid[row][col];
 
-        if tile.visibility != Visibility::Revealed {
-            tile.visibility = Visibility::Revealed;
-            self.num_revealed += 1;
-        }
+        assert_eq!(tile.visibility, Visibility::Hidden);
+
+        tile.visibility = Visibility::Revealed;
+        self.num_revealed += 1;
 
         if tile.has_bomb {
-            self.game_over = Some(GameOutcome::Loss)
-        } else if self.num_revealed == self.num_tiles() - self.num_bombs {
-            self.game_over = Some(GameOutcome::Win)
-        }
-    }
-
-    /// Is the game over, and how did it end?
-    ///
-    /// Return None if the game is in progress.
-    #[must_use]
-    pub fn game_over(&self) -> Option<GameOutcome> {
-        self.game_over
-    }
-
-    /// Newline-separated rows of chars. No trailing newline.
-    ///
-    /// See `Tile.to_char` for more info.
-    pub fn to_string(&self) -> String {
-        let mut s = String::new();
-        for (i, row) in self.grid.iter().enumerate() {
-            if i != 0 {
-                s.push('\n');
-            }
-            for tile in row {
-                s.push(tile.to_char());
+            // Hit a bomb -> you lose.
+            self.is_game_over = Some(GameOutcome::Loss)
+        } else {
+            // Reveal all the non-bombs -> you win.
+            let non_bombs = self.num_tiles() - self.num_bombs;
+            if self.num_revealed >= non_bombs {
+                assert_eq!(self.num_revealed, non_bombs);
+                self.is_game_over = Some(GameOutcome::Win)
             }
         }
-        s
     }
 
     /// Mark all tiles as revealed; e.g. when the game ends.
@@ -180,6 +113,28 @@ impl Game {
                 tile.visibility = Visibility::Revealed;
             }
         }
+        self.num_revealed = self.num_tiles();
+    }
+}
+
+impl fmt::Display for Game {
+    /// Rows of the grid, with no trailing newline.
+    ///
+    /// See [`Tile::to_char`] for more details.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buf = String::new();
+
+        for (i, row) in self.grid.iter().enumerate() {
+            if i != 0 {
+                buf.push('\n');
+            }
+
+            for tile in row {
+                buf.push(tile.to_char());
+            }
+        }
+
+        write!(f, "{}", buf)
     }
 }
 
@@ -187,76 +142,50 @@ impl Game {
 mod tests {
     use super::*;
 
-    mod io {
+    mod grid_parsing {
         use super::*;
         use std::fs;
 
-        mod good {
-            use super::*;
-
-            /// Parse the test input into a `Game`, and then turn the game back into a string.
-            ///
-            /// Check that the output matches the expected test output.
-            fn good(test_name: &'static str) {
-                let repo_root = env!("CARGO_MANIFEST_DIR");
-                let path = format!("{}/tests/io/good/{}", repo_root, test_name);
-
-                let mut game = Game::from_file(&format!("{}.in", path)).unwrap();
-                game.reveal_all();
-                let mut actual = game.to_string();
-                actual.push('\n');
-
-                let expected = fs::read_to_string(format!("{}.out", path)).unwrap();
-                assert_eq!(expected, actual);
-            }
-
-            #[test]
-            fn height_one() {
-                good("height_one");
-            }
-
-            #[test]
-            fn small() {
-                good("small");
-            }
-
-            #[test]
-            fn width_one() {
-                good("width_one");
-            }
+        #[test]
+        fn test_good_examples() {
+            good("small");
+            good("height_one");
+            good("width_one");
+            good("one_by_one_bomb");
+            good("one_by_one_empty");
         }
 
-        mod bad {
-            use super::*;
+        #[test]
+        fn test_bad_examples() {
+            bad("height_zero");
+            bad("invalid_chars");
+            bad("jagged");
+            bad("width_zero");
+        }
 
-            /// Try to parse the test input, and ensure that doing so causes an Err.
-            fn bad(test_name: &'static str) {
-                let repo_root = env!("CARGO_MANIFEST_DIR");
-                let path = format!("{}/tests/io/bad/{}", repo_root, test_name);
+        /// Parse an input file into a `Game`, print the game to a string, and check that
+        /// string against the output file.
+        fn good(test_name: &'static str) {
+            let repo_root = env!("CARGO_MANIFEST_DIR");
+            let path = format!("{}/tests/grid-parsing/good/{}", repo_root, test_name);
 
-                let result = Game::from_file(&format!("{}.in", path));
-                assert!(result.is_err());
-            }
+            let mut game = Game::from_file(&format!("{}.in", path)).unwrap();
+            game.reveal_all();
 
-            #[test]
-            fn height_zero() {
-                bad("height_zero");
-            }
+            let mut actual = game.to_string();
+            actual.push('\n');
 
-            #[test]
-            fn invalid_chars() {
-                bad("invalid_chars");
-            }
+            let expected = fs::read_to_string(format!("{}.out", path)).unwrap();
+            assert_eq!(expected, actual);
+        }
 
-            #[test]
-            fn jagged() {
-                bad("jagged");
-            }
+        /// Try to parse a game grid, and unwrap an Err.
+        fn bad(test_name: &'static str) {
+            let repo_root = env!("CARGO_MANIFEST_DIR");
+            let path = format!("{}/tests/grid-parsing/bad/{}", repo_root, test_name);
 
-            #[test]
-            fn width_zero() {
-                bad("width_zero");
-            }
+            let result = Game::from_file(&format!("{}.in", path));
+            assert!(result.is_err());
         }
     }
 }

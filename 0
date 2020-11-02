@@ -1,0 +1,13 @@
+    Example grid:
+
+......
+x*..21
+x5211
+xx..11
+......
+
+* = flag
+. = hidden
+# = bomb
+1-9 = number of adj bombs
+' ' = empty
