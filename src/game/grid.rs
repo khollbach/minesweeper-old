@@ -1,5 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
+mod display_grid;
+mod parse_grid;
+
+pub use parse_grid::{parse_grid, ParseResult};
+
 /// The grid of tiles in a game of minesweeper. Just a thin wrapper around a matrix.
 #[derive(Debug)]
 pub struct Grid(Vec<Vec<Tile>>);
@@ -79,11 +84,4 @@ impl Tile {
             }
         }
     }
-}
-
-/// After the game, did the user win or lose.
-#[derive(Debug, Clone, Copy)]
-pub enum GameOutcome {
-    Win,
-    Loss,
 }

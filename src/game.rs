@@ -1,13 +1,18 @@
-use parse_grid::{parse_grid, ParseResult};
+use grid::{parse_grid, ParseResult};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 
-mod display_grid;
-mod parse_grid;
-mod types;
+mod grid;
 
-pub use types::{GameOutcome, Grid, Point, Tile, Visibility};
+pub use grid::{Grid, Point, Tile, Visibility};
+
+/// After the game, did the user win or lose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameOutcome {
+    Win,
+    Loss,
+}
 
 /// The state of a game of minesweeper.
 ///
@@ -40,10 +45,8 @@ impl Game {
         })
     }
 
-    /// Read a grid from an input file. See [`Game::from_input`] for details.
-    pub fn from_file(file_name: &str) -> io::Result<Game> {
-        let file = File::open(file_name)?;
-
+    /// Read a grid from an input file. See [`parse_grid`] for details.
+    pub fn from_file(file: File) -> io::Result<Game> {
         Game::from_input(&mut BufReader::new(file))
     }
 

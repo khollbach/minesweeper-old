@@ -11,3 +11,11 @@ xx..11
 x = bomb
 1-9 = number of adj bombs
 ' ' = empty
+
+
+
+    TODOs:
+
+- display vs debug?
+- implement the other display:
+    with fancy column number markings

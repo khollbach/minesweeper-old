@@ -124,7 +124,7 @@ mod tests {
     /// Check that it matches the output file.
     fn good(test_name: &'static str) {
         let repo_root = env!("CARGO_MANIFEST_DIR");
-        let path = format!("{}/tests/grid-parsing/good/{}", repo_root, test_name);
+        let path = format!("{}/tests/parse_grid/good/{}", repo_root, test_name);
 
         // Parse the input file.
         let mut input = BufReader::new(File::open(&format!("{}.in", path)).unwrap());
@@ -164,10 +164,10 @@ mod tests {
         }
     }
 
-    /// Try to parse a game grid, and unwrap an Err.
+    /// Try to parse a malformed game grid, and unwrap an Err.
     fn bad(test_name: &'static str) {
         let repo_root = env!("CARGO_MANIFEST_DIR");
-        let path = format!("{}/tests/grid-parsing/bad/{}", repo_root, test_name);
+        let path = format!("{}/tests/parse_grid/bad/{}", repo_root, test_name);
 
         // Parse the input file.
         let mut input = BufReader::new(File::open(&format!("{}", path)).unwrap());
