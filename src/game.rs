@@ -3,6 +3,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 
+mod display_grid;
 mod parse_grid;
 mod types;
 
@@ -108,7 +109,7 @@ impl Game {
     ///
     /// todo: do we want to still show flags when the game ends ?
     pub fn reveal_all(&mut self) {
-        for row in &mut self.grid {
+        for row in self.grid.iter_mut() {
             for tile in row {
                 tile.visibility = Visibility::Revealed;
             }
@@ -118,74 +119,7 @@ impl Game {
 }
 
 impl fmt::Display for Game {
-    /// Rows of the grid, with no trailing newline.
-    ///
-    /// See [`Tile::to_char`] for more details.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut buf = String::new();
-
-        for (i, row) in self.grid.iter().enumerate() {
-            if i != 0 {
-                buf.push('\n');
-            }
-
-            for tile in row {
-                buf.push(tile.to_char());
-            }
-        }
-
-        write!(f, "{}", buf)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod grid_parsing {
-        use super::*;
-        use std::fs;
-
-        #[test]
-        fn test_good_examples() {
-            good("small");
-            good("height_one");
-            good("width_one");
-            good("one_by_one_bomb");
-            good("one_by_one_empty");
-        }
-
-        #[test]
-        fn test_bad_examples() {
-            bad("height_zero");
-            bad("invalid_chars");
-            bad("jagged");
-            bad("width_zero");
-        }
-
-        /// Parse an input file into a `Game`, print the game to a string, and check that
-        /// string against the output file.
-        fn good(test_name: &'static str) {
-            let repo_root = env!("CARGO_MANIFEST_DIR");
-            let path = format!("{}/tests/grid-parsing/good/{}", repo_root, test_name);
-
-            let mut game = Game::from_file(&format!("{}.in", path)).unwrap();
-            game.reveal_all();
-
-            let mut actual = game.to_string();
-            actual.push('\n');
-
-            let expected = fs::read_to_string(format!("{}.out", path)).unwrap();
-            assert_eq!(expected, actual);
-        }
-
-        /// Try to parse a game grid, and unwrap an Err.
-        fn bad(test_name: &'static str) {
-            let repo_root = env!("CARGO_MANIFEST_DIR");
-            let path = format!("{}/tests/grid-parsing/bad/{}", repo_root, test_name);
-
-            let result = Game::from_file(&format!("{}.in", path));
-            assert!(result.is_err());
-        }
+        write!(f, "{}", self.grid)
     }
 }

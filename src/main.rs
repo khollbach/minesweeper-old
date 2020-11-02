@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         // Display grid.
         clear_screen();
-        println!("{}", game.to_string());
+        println!("{}", game);
 
         // Get input.
         let point_to_reveal = match get_user_move(&game)? {

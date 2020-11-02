@@ -1,5 +1,28 @@
-/// The grid of tiles in a game of minesweeper.
-pub type Grid = Vec<Vec<Tile>>;
+use std::ops::{Deref, DerefMut};
+
+/// The grid of tiles in a game of minesweeper. Just a thin wrapper around a matrix.
+#[derive(Debug)]
+pub struct Grid(Vec<Vec<Tile>>);
+
+impl Grid {
+    pub fn new(grid: Vec<Vec<Tile>>) -> Grid {
+        Grid(grid)
+    }
+}
+
+impl Deref for Grid {
+    type Target = Vec<Vec<Tile>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Grid {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// The location of a tile in the grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

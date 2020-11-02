@@ -1,7 +1,3 @@
-//! Grid-parsing logic.
-//!
-//! Unit-tested in the [`game`] module against grid-printing logic.
-
 use super::{Grid, Tile};
 use std::io::{self, BufRead, BufReader, Read};
 
@@ -17,7 +13,7 @@ pub struct ParseResult {
 pub fn parse_grid(input: &mut BufReader<impl Read>) -> io::Result<ParseResult> {
     let err = |s| Err(io::Error::new(io::ErrorKind::InvalidData, s));
 
-    let mut grid: Grid = vec![];
+    let mut grid = Grid::new(vec![]);
     let mut num_bombs = 0;
 
     for line in input.lines() {
@@ -97,4 +93,53 @@ fn adj_bombs(grid: &Grid, i: usize, j: usize) -> u32 {
 
     assert!(bombs <= 9);
     bombs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::Game;
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_good_examples() {
+        good("small");
+        good("height_one");
+        good("width_one");
+        good("one_by_one_bomb");
+        good("one_by_one_empty");
+    }
+
+    #[test]
+    fn test_bad_examples() {
+        bad("height_zero");
+        bad("invalid_chars");
+        bad("jagged");
+        bad("width_zero");
+    }
+
+    /// Parse an input file into a `Game`, print the game to a string, and check that
+    /// string against the output file.
+    fn good(test_name: &'static str) {
+        let repo_root = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/tests/grid-parsing/good/{}", repo_root, test_name);
+
+        let mut game = Game::from_file(&format!("{}.in", path)).unwrap();
+        game.reveal_all();
+
+        let mut actual = game.grid.to_string();
+        actual.push('\n');
+
+        let expected = fs::read_to_string(format!("{}.out", path)).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    /// Try to parse a game grid, and unwrap an Err.
+    fn bad(test_name: &'static str) {
+        let repo_root = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/tests/grid-parsing/bad/{}", repo_root, test_name);
+
+        let result = Game::from_file(&format!("{}.in", path));
+        assert!(result.is_err());
+    }
 }
