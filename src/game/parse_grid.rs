@@ -13,7 +13,7 @@ pub struct ParseResult {
 
 /// Parse an input stream into a Grid. The grid must be non-empty and rectangular.
 ///
-/// Valid input chars are '#' or '.' for bomb / empty. Otherwise, this will fail.
+/// Valid input chars are 'x' or '.' for bomb / empty. Otherwise, this will fail.
 pub fn parse_grid(input: &mut BufReader<impl Read>) -> io::Result<ParseResult> {
     let err = |s| Err(io::Error::new(io::ErrorKind::InvalidData, s));
 
@@ -26,7 +26,7 @@ pub fn parse_grid(input: &mut BufReader<impl Read>) -> io::Result<ParseResult> {
         // Populate row.
         for c in line?.chars() {
             let has_bomb = match c {
-                '#' => {
+                'x' => {
                     num_bombs += 1;
                     true
                 }
@@ -89,7 +89,7 @@ fn adj_bombs(grid: &Grid, i: usize, j: usize) -> u32 {
         for &dj in &[-1, 0, 1] {
             let x = i + di;
             let y = j + dj;
-            if (0..n).contains(&x) && (0..m).contains(&y) && grid[x as usize][y as usize].has_bomb {
+            if (0..n).contains(&x) && (0..m).contains(&y) && grid[x as usize][y as usize].is_bomb {
                 bombs += 1;
             }
         }

@@ -91,7 +91,7 @@ impl Game {
         tile.visibility = Visibility::Revealed;
         self.num_revealed += 1;
 
-        if tile.has_bomb {
+        if tile.is_bomb {
             // Hit a bomb -> you lose.
             self.is_game_over = Some(GameOutcome::Loss)
         } else {

@@ -8,6 +8,6 @@ xx..11
 
 * = flag
 . = hidden
-# = bomb
+x = bomb
 1-9 = number of adj bombs
 ' ' = empty

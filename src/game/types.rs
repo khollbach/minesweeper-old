@@ -11,7 +11,7 @@ pub struct Point {
 /// A tile in the game.
 #[derive(Debug, Clone, Copy)]
 pub struct Tile {
-    pub has_bomb: bool,
+    pub is_bomb: bool,
     pub adj_bombs: u32,
     pub visibility: Visibility,
 }
@@ -28,9 +28,9 @@ impl Tile {
     /// Create a new tile, initially hidden.
     ///
     /// self.adj_bombs is *NOT* computed here.
-    pub fn new(has_bomb: bool) -> Self {
+    pub fn new(is_bomb: bool) -> Self {
         Self {
-            has_bomb,
+            is_bomb,
             adj_bombs: 0,
             visibility: Visibility::Hidden,
         }
@@ -45,8 +45,8 @@ impl Tile {
             Hidden => '.',
             Flagged => '*',
             Revealed => {
-                if self.has_bomb {
-                    '#'
+                if self.is_bomb {
+                    'x'
                 } else if self.adj_bombs == 0 {
                     ' '
                 } else {
