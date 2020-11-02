@@ -97,9 +97,10 @@ fn adj_bombs(grid: &Grid, i: usize, j: usize) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::Game;
+    use super::super::Visibility;
     use super::*;
-    use std::fs;
+    use std::fs::{self, File};
+    use std::io::BufReader;
 
     #[test]
     fn test_good_examples() {
@@ -118,20 +119,49 @@ mod tests {
         bad("width_zero");
     }
 
-    /// Parse an input file into a `Game`, print the game to a string, and check that
-    /// string against the output file.
+    /// Parse the input file, and then print it back to a string.
+    ///
+    /// Check that it matches the output file.
     fn good(test_name: &'static str) {
         let repo_root = env!("CARGO_MANIFEST_DIR");
         let path = format!("{}/tests/grid-parsing/good/{}", repo_root, test_name);
 
-        let mut game = Game::from_file(&format!("{}.in", path)).unwrap();
-        game.reveal_all();
+        // Parse the input file.
+        let mut input = BufReader::new(File::open(&format!("{}.in", path)).unwrap());
+        let ParseResult {
+            mut grid,
+            num_bombs,
+        } = parse_grid(&mut input).unwrap();
 
-        let mut actual = game.grid.to_string();
-        actual.push('\n');
+        assert_eq!(num_bombs, count_bombs(&grid));
+
+        // Display the grid.
+        reveal_all(&mut grid);
+        let mut output = grid.to_string();
+        output.push('\n');
 
         let expected = fs::read_to_string(format!("{}.out", path)).unwrap();
-        assert_eq!(expected, actual);
+        assert_eq!(output, expected);
+    }
+
+    fn count_bombs(grid: &Grid) -> u32 {
+        let mut num_bombs = 0;
+        for row in grid.iter() {
+            for tile in row {
+                if tile.is_bomb {
+                    num_bombs += 1;
+                }
+            }
+        }
+        num_bombs
+    }
+
+    fn reveal_all(grid: &mut Grid) {
+        for row in grid.iter_mut() {
+            for tile in row {
+                tile.visibility = Visibility::Revealed;
+            }
+        }
     }
 
     /// Try to parse a game grid, and unwrap an Err.
@@ -139,7 +169,9 @@ mod tests {
         let repo_root = env!("CARGO_MANIFEST_DIR");
         let path = format!("{}/tests/grid-parsing/bad/{}", repo_root, test_name);
 
-        let result = Game::from_file(&format!("{}.in", path));
+        // Parse the input file.
+        let mut input = BufReader::new(File::open(&format!("{}", path)).unwrap());
+        let result = parse_grid(&mut input);
         assert!(result.is_err());
     }
 }
