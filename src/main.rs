@@ -24,15 +24,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         clear_screen();
         println!("{}", game);
 
-        // Get input.
-        let point_to_reveal = match get_user_move(&game)? {
-            Command::Point(p) => p,
-            Command::Exit => return Ok(()),
-        };
-
-        // Update game state.
-        game.reveal(point_to_reveal);
-
         // Check if the game is over.
         match game.is_game_over() {
             Some(GameOutcome::Win) => {
@@ -45,6 +36,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             None => (),
         }
+
+        // Get input.
+        let point_to_reveal = match get_user_move(&game)? {
+            Command::Point(p) => p,
+            Command::Exit => return Ok(()),
+        };
+
+        // Update game state.
+        game.reveal(point_to_reveal);
     }
 }
 
